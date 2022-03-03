@@ -12,36 +12,73 @@
 // .fix_width(200.0)
 // .lens(AppState::tab_config);
 
+pub mod data;
+pub mod views;
+
+use data::inventory::{Product, ProductEdit};
 use druid::{
     widget::{
         Flex, // MainAxisAlignment, CrossAxisAlignment, 
-        Padding, Label, Container, Split, Align
+        Padding, Label, Container, Split, Align, List, Scroll
     }, 
-    Widget, WidgetExt, Color
+    Widget, WidgetExt, Color, im::Vector, Data, Lens, EventCtx, Env
 };
+use views::prod_view::{prod_widget, new_prod_textbox};
 
-pub fn inventory_ui()->impl Widget<u32> {
-    let product_reg: Container<u32> = Container::new(
+#[derive(Debug, Clone, Data, Lens)]
+pub struct AppState {
+    product_editor: ProductEdit,
+    products: Vector<Product>
+}
+impl AppState {
+    pub fn dummy_data()->AppState {
+        let products = (0..10).into_iter().map(|f|Product{ name: format!("Product{}",f) });
+        let products = Vector::from_iter(products);
+        Self { products, product_editor: ProductEdit::default() }
+    }
+    pub fn add_product(&mut self) {
+        if !self.product_editor.name.is_empty(){
+            self.products.push_front(Product::from(self.product_editor.to_owned()));
+            self.product_editor = ProductEdit::default();
+        }
+    }
+    pub fn click_add_new(_ctx: &mut EventCtx, data: &mut Self, _env: &Env) {
+        data.add_product();
+    }
+}
+
+pub fn inventory_ui()->impl Widget<AppState> {
+    let product_section: Container<AppState> = Container::new(
         Flex::column()
             .with_flex_child(
                 Split::rows(
-                    Align::centered(Label::new("Prod Reg")),
-                    Align::centered(Label::new("Prod list"))
+                    Align::centered(new_prod_textbox()),
+                    Flex::column()
+                        .with_child(Label::new("PRODUCT(S)"))
+                        .with_flex_child(
+                            Padding::new(
+                                10.0, 
+                                Scroll::new(
+                                    List::new(prod_widget).lens(AppState::products)
+                                ).vertical()
+                            ), 
+                            1.0
+                        )
                 )
                 .split_point(0.4), 1.0
             )
     );
 
-    let finshed_prod: Flex<u32> = Flex::column().with_flex_child(
+    let finshed_prod: Flex<AppState> = Flex::column().with_flex_child(
         Align::centered(Label::new("Finished Prod")), 1.
     );
 
-    let side_bar: Padding<u32> = Padding::new(
+    let side_bar: Padding<AppState> = Padding::new(
         5.0, 
         Container::new( 
             Flex::column()
                     .with_flex_child(
-                        Split::rows(product_reg, finshed_prod)
+                        Split::rows(product_section, finshed_prod)
                         .split_point(0.55), 1.0
                     )
                     // .main_axis_alignment(MainAxisAlignment::End)
@@ -51,7 +88,7 @@ pub fn inventory_ui()->impl Widget<u32> {
                 ).border(Color::WHITE, 1.0)
     );
 
-    let top_row: Padding<u32> = Padding::new(
+    let top_row: Padding<AppState> = Padding::new(
         3.,
         Container::new(
             Split::columns(
@@ -67,7 +104,7 @@ pub fn inventory_ui()->impl Widget<u32> {
         .border(Color::WHITE, 1.0),
     );
 
-    let bottom_row: Padding<u32> = Padding::new(
+    let bottom_row: Padding<AppState> = Padding::new(
         3.0,
         Container::new(
             Split::columns(
