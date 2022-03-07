@@ -45,3 +45,59 @@ impl From<ProductEdit> for Product {
         Self { name: item.name }
     }
 }
+
+#[derive(Debug, Clone, Data, Lens, Default, PartialEq)]
+pub struct RawMaterial {
+    pub name: String,
+    pub quantity: f32,
+    // materials in store will have this as None
+    // when construting an instance for transaction purposes, then it has to be Some(thing)
+    pub price_per_kg: Option<f32>,
+}
+
+#[derive(Debug, Clone, Data, Lens, Default)]
+pub struct RawMaterialEditor {
+    pub name: String,
+    pub quantity: String,
+    pub price_per_kg: Option<f32>,
+}
+#[derive(Debug, Clone, Data, Lens, Default)]
+pub struct FinishedProd {
+    pub product: Product,
+    pub quantity: f32,
+    pub edit_qty: String,
+    pub which: bool
+}
+impl FinishedProd {
+    pub fn new(product: Product)->Self {
+        Self { 
+            product,
+            quantity: 0.0,
+            edit_qty: String::default(),
+            which: false, 
+        }
+    }
+    pub fn click_add_new(_ctx: &mut EventCtx, data: &mut Self, _env: &Env) {
+        data.add_qty();
+    }
+    fn add_qty(&mut self) {
+        if let Ok(edit) = self.edit_qty.parse::<f32>() {
+            self.quantity += edit;
+            self.which = false;
+        }else {
+            self.edit_qty = String::from("invalid!!");
+        }
+    }
+}
+
+impl From<FinishedProdEditor> for FinishedProd {
+    fn from(item: FinishedProdEditor) -> Self {
+        Self { product: item.product, quantity: item.quantity, edit_qty: 0.0.to_string(), which: false }
+    }
+}
+
+#[derive(Debug, Clone, Data, Lens, Default)]
+pub struct FinishedProdEditor {
+    pub product: Product,
+    pub quantity: f32
+}

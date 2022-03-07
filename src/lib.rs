@@ -15,7 +15,7 @@
 pub mod data;
 pub mod views;
 
-use data::inventory::{Product, ProductEdit};
+use data::inventory::{Product, ProductEdit, RawMaterial, RawMaterialEditor, FinishedProd, FinishedProdEditor};
 use druid::{
     widget::{
         Flex, // MainAxisAlignment, CrossAxisAlignment, 
@@ -23,22 +23,47 @@ use druid::{
     }, 
     Widget, WidgetExt, Color, im::Vector, Data, Lens, EventCtx, Env
 };
-use views::prod_view::{prod_widget, new_prod_textbox};
+use views::{prod_view::{prod_widget, new_prod_textbox, fp_widget}, rm_view::rm_widget};
 
 #[derive(Debug, Clone, Data, Lens)]
 pub struct AppState {
+    // editors
     product_editor: ProductEdit,
-    products: Vector<Product>
+    rm_editor: RawMaterialEditor,
+    fp_editor: FinishedProdEditor,
+    // bools
+    // actual data
+    products: Vector<Product>,
+    rm: Vector<RawMaterial>,
+    fp: Vector<FinishedProd>,
 }
 impl AppState {
     pub fn dummy_data()->AppState {
         let products = (0..10).into_iter().map(|f|Product{ name: format!("Product{}",f) });
+        let rm = (0..10).into_iter().map(|f|RawMaterial{ 
+            name: format!("RawMat {}",f), quantity: 59.5, price_per_kg: None 
+        });
+        let fp = (0..10).into_iter().map(|f|FinishedProd{ 
+            product: Product{ name: format!("Fproduct {}",f)}, quantity: 43.7, edit_qty: 0.0.to_string(), which: false
+        });
+
         let products = Vector::from_iter(products);
-        Self { products, product_editor: ProductEdit::default() }
+        let rm = Vector::from_iter(rm);
+        let fp = Vector::from_iter(fp);
+
+        Self { 
+            products, product_editor: ProductEdit::default(), 
+            rm, rm_editor: RawMaterialEditor::default(),
+            fp, fp_editor: FinishedProdEditor::default(),
+        }
     }
     pub fn add_product(&mut self) {
         if !self.product_editor.name.is_empty(){
             self.products.push_front(Product::from(self.product_editor.to_owned()));
+            // create a Finished-product
+            let fp = FinishedProd::new(Product::from(self.product_editor.to_owned()));
+            self.fp.push_front(fp);
+            // final cleanup
             self.product_editor = ProductEdit::default();
         }
     }
@@ -69,17 +94,24 @@ pub fn inventory_ui()->impl Widget<AppState> {
             )
     );
 
-    let finshed_prod: Flex<AppState> = Flex::column().with_flex_child(
-        Align::centered(Label::new("Finished Prod")), 1.
-    );
+    let finished_prod: Flex<AppState> = Flex::column()
+        .with_child(
+            Align::centered(Label::new("Finished Prod"))
+        )
+        .with_flex_child(
+            Scroll::new(
+                List::new(fp_widget).lens(AppState::fp)
+            ).vertical(), 
+            1.
+        );
 
     let side_bar: Padding<AppState> = Padding::new(
         5.0, 
         Container::new( 
             Flex::column()
                     .with_flex_child(
-                        Split::rows(product_section, finshed_prod)
-                        .split_point(0.55), 1.0
+                        Split::rows(product_section, finished_prod)
+                        .split_point(0.4), 1.0
                     )
                     // .main_axis_alignment(MainAxisAlignment::End)
                     // .cross_axis_alignment(CrossAxisAlignment::End)
@@ -100,7 +132,7 @@ pub fn inventory_ui()->impl Widget<AppState> {
                 .split_point(0.5)
             )
             .split_point(0.4)
-        ).background(Color::SILVER)
+        )//.background(Color::SILVER)
         .border(Color::WHITE, 1.0),
     );
 
@@ -109,7 +141,17 @@ pub fn inventory_ui()->impl Widget<AppState> {
         Container::new(
             Split::columns(
                 Align::centered(Label::new("Daily Sales")),
-                Align::centered(Label::new("Raw Materials")),
+                Flex::column()
+                    .with_child(Label::new("Raw Materials(In Stock)"))
+                    .with_flex_child(
+                    Padding::new(
+                        10.0, 
+                        Scroll::new(
+                            List::new(rm_widget).lens(AppState::rm)
+                        ).vertical()
+                    ), 
+                    1.0
+                )
             ).split_point(0.5)
         )
         .border(Color::WHITE, 1.0),
@@ -127,3 +169,5 @@ pub fn inventory_ui()->impl Widget<AppState> {
     );
     org_col //.debug_paint_layout()
 }
+
+// pub fn sales_ui()->impl Widget<AppState> {}
